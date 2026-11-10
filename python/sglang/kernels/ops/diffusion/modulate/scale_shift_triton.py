@@ -20,14 +20,20 @@ def _fused_scaled_residual_add_exact_kernel(
     numel: tl.constexpr,
     width: tl.constexpr,
     BLOCK_SIZE: tl.constexpr,
+    USE_RN_MUL: tl.constexpr,
 ):
     offsets = tl.program_id(0) * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
     mask = offsets < numel
     x = tl.load(x_ptr + offsets, mask=mask).to(tl.float32)
     scale = tl.load(scale_ptr + offsets % width, mask=mask)
     residual = tl.load(residual_ptr + offsets, mask=mask)
-    # The opaque multiply keeps Triton from contracting this into an FMA.
-    output = residual + mul_rn_f32(x, scale)
+    if USE_RN_MUL:
+        # The opaque multiply keeps Triton from contracting this into an FMA.
+        output = residual + mul_rn_f32(x, scale)
+    else:
+        # HIP has no PTX inline asm; enable_fp_fusion=False plus the separate
+        # add keeps the same rounding.
+        output = residual + x * scale
     tl.store(output_ptr + offsets, output, mask=mask)
 
 
@@ -38,7 +44,7 @@ def try_fused_scaled_residual_add_exact(
 ) -> torch.Tensor | None:
     """Fuse ``residual + x * scale`` without changing eager FP32 rounding."""
     if (
-        not is_cuda()
+        not (is_cuda() or is_hip())
         or torch.is_grad_enabled()
         or torch.compiler.is_compiling()
         or residual.dtype != torch.float32
@@ -66,6 +72,8 @@ def try_fused_scaled_residual_add_exact(
         numel=x.numel(),
         width=x.shape[-1],
         BLOCK_SIZE=block_size,
+        USE_RN_MUL=is_cuda(),
+        enable_fp_fusion=False,
     )
     return output
 

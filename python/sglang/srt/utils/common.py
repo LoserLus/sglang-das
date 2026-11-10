@@ -200,7 +200,9 @@ def is_hcu() -> bool:
     try:
         props = torch.cuda.get_device_properties(0)
         gcn_arch = getattr(props, "gcnArchName", "")
-        supported_archs = ["gfx936", "gfx938", "gfx928"]
+        # Keep in sync with the gfx allowlists elsewhere in this codebase
+        # (e.g. aiter_w4a8.py, deepseek_v4.py), which already include gfx92a.
+        supported_archs = ["gfx936", "gfx938", "gfx928", "gfx92a"]
         return any(gfx in gcn_arch for gfx in supported_archs)
     except Exception as e:
         logger.warning("HCU detection failed (not a HCU or HIP misconfigured): %s", e)

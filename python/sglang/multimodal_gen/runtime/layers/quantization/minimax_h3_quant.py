@@ -706,7 +706,9 @@ class MiniMaxH3Fp8LinearMethod(MiniMaxH3QuantLinearMethod):
 
     def apply(self, layer, x, bias=None):
         shape = x.shape
-        rows = x.reshape(-1, shape[-1]).contiguous()
+        rows = x.reshape(-1, shape[-1])
+        if rows.stride(1) != 1:
+            rows = rows.contiguous()
         result = linear_fp8(
             rows, layer.weight, layer.weight_scale_inv, bias, fused=self.fused
         )

@@ -236,6 +236,13 @@ _SPECS: tuple[tuple[str, KernelBackend, str, frozenset, str], ...] = (
         "MiniMax-H3 video VAE ViT fused unaffine QK RMSNorm + partial NeoX RoPE (HCU).",
     ),
     (
+        "diffusion.minimax_h3_dit_qknorm_rope",
+        KernelBackend.TRITON,
+        "rope.minimax_h3_dit_qknorm_rope_triton:minimax_h3_dit_qknorm_rope",
+        _HIP,
+        "MiniMax-H3 DiT fused in-place affine QK RMSNorm + partial NeoX RoPE (HCU).",
+    ),
+    (
         "diffusion.silu_mul",
         KernelBackend.TRITON,
         "activation.silu_mul_bitexact:fused_silu_mul_bitexact",
@@ -407,6 +414,8 @@ _EXPORTS: dict[str, str] = {
     "hunyuan_qkv_rope_pack": "rope.hunyuan_qkv_pack_triton",
     "can_use_minimax_h3_vae_qknorm_rope": "rope.minimax_h3_vae_qknorm_rope_triton",
     "minimax_h3_vae_qknorm_rope": "rope.minimax_h3_vae_qknorm_rope_triton",
+    "can_use_minimax_h3_dit_qknorm_rope": "rope.minimax_h3_dit_qknorm_rope_triton",
+    "minimax_h3_dit_qknorm_rope": "rope.minimax_h3_dit_qknorm_rope_triton",
     "can_use_ltx2_qknorm_split_rope_cuda": "rope.ltx2_qknorm_split_rope_jit",
     "ltx2_qknorm_split_rope_cuda": "rope.ltx2_qknorm_split_rope_jit",
     "apply_ltx2_split_rotary_emb": "rope.ltx2_rotary_triton",

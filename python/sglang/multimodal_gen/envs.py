@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     SGLANG_MINIMAX_H3_INT8_FUSION: bool = True
     SGLANG_MINIMAX_H3_FP8_OPTIMIZE: bool = True
     SGLANG_MINIMAX_H3_VAE_TRITON_QKNORM_ROPE: bool = False
+    SGLANG_MINIMAX_H3_DIT_TRITON_QKNORM_ROPE: bool = False
     SGLANG_MINIMAX_H3_FP8_FUSED_SILU_MUL: bool = False
     SGLANG_DIFFUSION_NCCL_SO_PATH: str | None = None
     LD_LIBRARY_PATH: str | None = None
@@ -178,6 +179,12 @@ environment_variables: dict[str, Callable[[], Any]] = {
     # minimax_h3_vae_qknorm_rope_triton.py). Off by default.
     "SGLANG_MINIMAX_H3_VAE_TRITON_QKNORM_ROPE": _lazy_bool(
         "SGLANG_MINIMAX_H3_VAE_TRITON_QKNORM_ROPE", "false"
+    ),
+    # Experimental HCU-only fused in-place DiT QK RMSNorm + partial RoPE
+    # kernel (the CUDA JIT fused_inplace_qknorm_rope is disabled on HCU);
+    # not bit-exact vs the split reference. Off by default.
+    "SGLANG_MINIMAX_H3_DIT_TRITON_QKNORM_ROPE": _lazy_bool(
+        "SGLANG_MINIMAX_H3_DIT_TRITON_QKNORM_ROPE", "false"
     ),
     # Experimental: let the existing fused in-place SiLU-and-multiply
     # activation kernel run on MiniMax-H3 FP8-quantized layers' (bf16)

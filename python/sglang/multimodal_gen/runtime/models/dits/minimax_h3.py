@@ -24,10 +24,12 @@ from sglang.kernels.ops.activation.activation import (
 )
 from sglang.kernels.ops.diffusion import (
     can_use_fused_inplace_qknorm_rope,
+    can_use_minimax_h3_dit_qknorm_rope,
     fused_inplace_qknorm_rope,
     indexed_gate_bf16,
     indexed_gate_bf16_,
     indexed_scale_shift_bf16_,
+    minimax_h3_dit_qknorm_rope,
 )
 from sglang.kernels.ops.layernorm.norm import fused_inplace_qknorm
 from sglang.multimodal_gen import envs
@@ -968,6 +970,30 @@ class MiniMaxH3Attention(nn.Module):
                     head_dim=self.head_dim,
                     rope_dim=cos_sin_cache.shape[-1],
                     round_norm_before_rope=True,
+                )
+            elif (
+                envs.SGLANG_MINIMAX_H3_DIT_TRITON_QKNORM_ROPE
+                and is_hcu()
+                and not torch.is_grad_enabled()
+                and not torch.compiler.is_compiling()
+                and can_use_minimax_h3_dit_qknorm_rope(
+                    q,
+                    k,
+                    self.q_norm.weight,
+                    self.k_norm.weight,
+                    cos_sin_cache,
+                    self.q_norm.eps,
+                    self.k_norm.eps,
+                )
+            ):
+                minimax_h3_dit_qknorm_rope(
+                    q,
+                    k,
+                    self.q_norm.weight,
+                    self.k_norm.weight,
+                    cos_sin_cache,
+                    positions,
+                    self.q_norm.eps,
                 )
             else:
                 q, k = _apply_qk_norm(

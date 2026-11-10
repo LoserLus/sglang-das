@@ -22,6 +22,7 @@ if TYPE_CHECKING:
     SGLANG_MINIMAX_H3_VAE_TRITON_QKNORM_ROPE: bool = False
     SGLANG_MINIMAX_H3_DIT_TRITON_QKNORM_ROPE: bool = False
     SGLANG_MINIMAX_H3_FP8_FUSED_SILU_MUL: bool = False
+    SGLANG_MINIMAX_H3_FUSED_RMSNORM_ADALN: bool = False
     SGLANG_MINIMAX_H3_FA2_STRIDED_QKV: bool = False
     SGLANG_DIFFUSION_NCCL_SO_PATH: str | None = None
     LD_LIBRARY_PATH: str | None = None
@@ -193,6 +194,13 @@ environment_variables: dict[str, Callable[[], Any]] = {
     # Off by default pending broader checkpoint coverage.
     "SGLANG_MINIMAX_H3_FP8_FUSED_SILU_MUL": _lazy_bool(
         "SGLANG_MINIMAX_H3_FP8_FUSED_SILU_MUL", "false"
+    ),
+    # Experimental: fuse the block's RMSNorm into the indexed AdaLN
+    # scale/shift kernel. Not bit-exact vs the eager norm+modulate chain
+    # (the fused kernel sums squares in a different order), so it is off
+    # by default and gated on HCU.
+    "SGLANG_MINIMAX_H3_FUSED_RMSNORM_ADALN": _lazy_bool(
+        "SGLANG_MINIMAX_H3_FUSED_RMSNORM_ADALN", "false"
     ),
     # Experimental: pass packed strided QKV views straight to HCU FA2 instead
     # of copying to contiguous first. Only the head dimensions need to be

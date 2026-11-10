@@ -25,9 +25,11 @@ from sglang.kernels.ops.activation.activation import (
 from sglang.kernels.ops.diffusion import (
     can_use_fused_inplace_qknorm_rope,
     can_use_minimax_h3_dit_qknorm_rope,
+    can_use_minimax_h3_rmsnorm_scale_shift,
     fused_inplace_qknorm_rope,
     indexed_gate_bf16,
     indexed_gate_bf16_,
+    indexed_rmsnorm_scale_shift_bf16,
     indexed_scale_shift_bf16_,
     minimax_h3_dit_qknorm_rope,
 )
@@ -356,6 +358,37 @@ def _modulate_scale_shift(
     return (
         x * (1.0 + scale.index_select(0, indices)) + shift.index_select(0, indices)
     ).to(dtype)
+
+
+def _norm_modulate_scale_shift(
+    norm: nn.Module,
+    x: torch.Tensor,
+    shift: torch.Tensor,
+    scale: torch.Tensor,
+    indices: torch.Tensor,
+    *,
+    dtype: torch.dtype,
+    fused_fp32: bool = False,
+) -> torch.Tensor:
+    if (
+        envs.SGLANG_MINIMAX_H3_FUSED_RMSNORM_ADALN
+        and is_hcu()
+        and not fused_fp32
+        and not torch.is_grad_enabled()
+        and not torch.compiler.is_compiling()
+        and isinstance(norm, nn.RMSNorm)
+        and norm.weight is not None
+        and dtype == _BF16_DTYPE
+        and can_use_minimax_h3_rmsnorm_scale_shift(
+            x, norm.weight, shift, scale, indices
+        )
+    ):
+        return indexed_rmsnorm_scale_shift_bf16(
+            x, norm.weight, shift, scale, indices, norm.eps
+        )
+    return _modulate_scale_shift(
+        norm(x), shift, scale, indices, dtype=dtype, fused_fp32=fused_fp32
+    )
 
 
 def _modulate_gate(
@@ -748,7 +781,11 @@ class MiniMaxH3Attention(nn.Module):
     def _set_attention_backend(self, backend) -> None:
         impl_cls = backend.get_impl_cls()
         extra_impl_args = {}
-        if is_hcu() and backend.get_enum() is AttentionBackendEnum.FA2:
+        if (
+            envs.SGLANG_MINIMAX_H3_FA2_STRIDED_QKV
+            and is_hcu()
+            and backend.get_enum() is AttentionBackendEnum.FA2
+        ):
             # HCU FA2 accepts packed QKV views with contiguous head dimensions.
             extra_impl_args["allow_strided_qkv"] = True
         self._attention_impl = impl_cls(
@@ -1596,9 +1633,9 @@ class MiniMaxH3DiTBlock(nn.Module):
         # first gated residual writes to that tensor; the second one operates on
         # a block-local buffer.
         residual = x
-        h = self.norm1(x)
-        h = _modulate_scale_shift(
-            h,
+        h = _norm_modulate_scale_shift(
+            self.norm1,
+            x,
             shift_msa,
             scale_msa,
             combined_indices,
@@ -1625,9 +1662,9 @@ class MiniMaxH3DiTBlock(nn.Module):
         )
 
         residual = x
-        h = self.norm2(x)
-        h = _modulate_scale_shift(
-            h,
+        h = _norm_modulate_scale_shift(
+            self.norm2,
+            x,
             shift_mlp,
             scale_mlp,
             combined_indices,

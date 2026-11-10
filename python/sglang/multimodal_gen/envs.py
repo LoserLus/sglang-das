@@ -19,6 +19,7 @@ if TYPE_CHECKING:
     SGLANG_MINIMAX_H3_INT8_ENABLE: bool = True
     SGLANG_MINIMAX_H3_INT8_FUSION: bool = True
     SGLANG_MINIMAX_H3_FP8_OPTIMIZE: bool = True
+    SGLANG_MINIMAX_H3_VAE_TRITON_QKNORM_ROPE: bool = False
     SGLANG_DIFFUSION_NCCL_SO_PATH: str | None = None
     LD_LIBRARY_PATH: str | None = None
     LOCAL_RANK: int = 0
@@ -170,6 +171,12 @@ environment_variables: dict[str, Callable[[], Any]] = {
     ),
     "SGLANG_MINIMAX_H3_FP8_OPTIMIZE": _lazy_bool(
         "SGLANG_MINIMAX_H3_FP8_OPTIMIZE", "true"
+    ),
+    # Experimental HCU-only fused VAE ViT QK RMSNorm + partial RoPE kernel;
+    # not bit-exact vs the split reference (see
+    # minimax_h3_vae_qknorm_rope_triton.py). Off by default.
+    "SGLANG_MINIMAX_H3_VAE_TRITON_QKNORM_ROPE": _lazy_bool(
+        "SGLANG_MINIMAX_H3_VAE_TRITON_QKNORM_ROPE", "false"
     ),
     # ================== Installation Time Env Vars ==================
     # Target device of sglang-diffusion, supporting [cuda (by default),

@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     SGLANG_MINIMAX_H3_INT8_FUSION: bool = True
     SGLANG_MINIMAX_H3_FP8_OPTIMIZE: bool = True
     SGLANG_MINIMAX_H3_VAE_TRITON_QKNORM_ROPE: bool = False
+    SGLANG_MINIMAX_H3_FP8_FUSED_SILU_MUL: bool = False
     SGLANG_DIFFUSION_NCCL_SO_PATH: str | None = None
     LD_LIBRARY_PATH: str | None = None
     LOCAL_RANK: int = 0
@@ -177,6 +178,13 @@ environment_variables: dict[str, Callable[[], Any]] = {
     # minimax_h3_vae_qknorm_rope_triton.py). Off by default.
     "SGLANG_MINIMAX_H3_VAE_TRITON_QKNORM_ROPE": _lazy_bool(
         "SGLANG_MINIMAX_H3_VAE_TRITON_QKNORM_ROPE", "false"
+    ),
+    # Experimental: let the existing fused in-place SiLU-and-multiply
+    # activation kernel run on MiniMax-H3 FP8-quantized layers' (bf16)
+    # activations, same as the unconditional unquantized/gguf cases above.
+    # Off by default pending broader checkpoint coverage.
+    "SGLANG_MINIMAX_H3_FP8_FUSED_SILU_MUL": _lazy_bool(
+        "SGLANG_MINIMAX_H3_FP8_FUSED_SILU_MUL", "false"
     ),
     # ================== Installation Time Env Vars ==================
     # Target device of sglang-diffusion, supporting [cuda (by default),

@@ -1034,6 +1034,16 @@ class MiniMaxH3MLP(nn.Module):
         self.reuse_fc1_activation = quant_config is None or (
             quant_config.get_name() == "gguf"
         )
+        # FP8 activations are the same bf16 tensor as any other precision
+        # (MiniMaxH3QuantConfig.get_supported_act_dtypes is bf16-only; FP8
+        # only changes the linear weights), so the fused in-place SiLU-mul
+        # kernel is numerically identical once enabled. Gated separately
+        # from the unconditional cases above because it has not been
+        # exercised as broadly across checkpoints yet.
+        self.reuse_fc1_activation = self.reuse_fc1_activation or (
+            envs.SGLANG_MINIMAX_H3_FP8_FUSED_SILU_MUL
+            and getattr(quant_config, "precision", None) == "fp8"
+        )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         if x.device.type == "mps":
